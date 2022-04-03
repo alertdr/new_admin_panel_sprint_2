@@ -8,28 +8,23 @@ from movies.models import Filmwork, PersonFilmwork
 
 
 class MoviesApiMixin:
+    @staticmethod
+    def _aggregate_person(role):
+        return ArrayAgg(
+            'persons__full_name',
+            distinct=True,
+            filter=Q(personfilmwork__role__icontains=role)
+        )
 
     def get_queryset(self):
         filmwork = Filmwork.objects.prefetch_related(
             'genres',
             'persons'
-        ).values().annotate(
+        ).values('id', 'title', 'description', 'creation_date', 'rating', 'type').annotate(
             genres=ArrayAgg('genres__name', distinct=True),
-            actors=ArrayAgg(
-                'persons__full_name',
-                distinct=True,
-                filter=Q(personfilmwork__role__icontains=PersonFilmwork.Role.ACTOR)
-            ),
-            directors=ArrayAgg(
-                'persons__full_name',
-                distinct=True,
-                filter=Q(personfilmwork__role__icontains=PersonFilmwork.Role.DIRECTOR)
-            ),
-            writers=ArrayAgg(
-                'persons__full_name',
-                distinct=True,
-                filter=Q(personfilmwork__role__icontains=PersonFilmwork.Role.WRITER)
-            )
+            actors=self._aggregate_person(role=PersonFilmwork.Role.ACTOR),
+            directors=self._aggregate_person(role=PersonFilmwork.Role.DIRECTOR),
+            writers=self._aggregate_person(role=PersonFilmwork.Role.WRITER)
         )
 
         return filmwork
@@ -50,8 +45,8 @@ class MoviesListApi(MoviesApiMixin, BaseListView):
         context = {
             'count': paginator.count,
             'total_pages': paginator.num_pages,
-            'prev': None if page.number == 1 else page.previous_page_number(),
-            'next': None if page.number == paginator.num_pages else page.next_page_number(),
+            'prev': page.previous_page_number() if page.has_previous() else None,
+            'next': page.next_page_number() if page.has_next() else None,
             'results': list(paginator.page(page.number)),
         }
         return context
@@ -60,5 +55,4 @@ class MoviesListApi(MoviesApiMixin, BaseListView):
 class MoviesDetailApi(MoviesApiMixin, BaseDetailView):
 
     def get_context_data(self, **kwargs):
-        queryset = self.get_queryset()
-        return self.get_object(queryset)
+        return self.get_object()
