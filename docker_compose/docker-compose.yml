@@ -1,5 +1,5 @@
 version: "3.9"
-   
+
 services:
   web:
     container_name: django
@@ -56,5 +56,5 @@ services:
       - djangonetwork
 
 networks:
-      djangonetwork:
-          driver: bridge
+  djangonetwork:
+    driver: bridge
